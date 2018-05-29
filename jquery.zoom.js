@@ -11,6 +11,7 @@
 		duration: 120,
 		on: 'mouseover', // other options: grab, click, toggle
 		touch: true, // enables a touch fallback
+		touchOn: 'none', // touch toggle event
 		onZoomIn: false,
 		onZoomOut: false,
 		magnify: 1
@@ -93,7 +94,8 @@
 			$img = $(img),
 			mousemove = 'mousemove.zoom',
 			clicked = false,
-			touched = false;
+			touched = false,
+			touchMoved = false;
 
 			// If a url wasn't specified, look for an image element.
 			if (!settings.url) {
@@ -130,6 +132,10 @@
 				function stop() {
 					$img.stop()
 					.fadeTo(settings.duration, 0, $.isFunction(settings.onZoomOut) ? settings.onZoomOut.call(img) : false);
+				}
+
+				function imgVisible() {
+					return $img.css('opacity') == 1;
 				}
 
 				// Mouse events
@@ -197,28 +203,50 @@
 
 				// Touch fallback
 				if (settings.touch) {
-					$source
-						.on('touchstart.zoom', function (e) {
-							e.preventDefault();
-							if (touched) {
-								touched = false;
-								stop();
-							} else {
-								touched = true;
-								start( e.originalEvent.touches[0] || e.originalEvent.changedTouches[0] );
-							}
-						})
-						.on('touchmove.zoom', function (e) {
-							e.preventDefault();
-							zoom.move( e.originalEvent.touches[0] || e.originalEvent.changedTouches[0] );
-						})
-						.on('touchend.zoom', function (e) {
-							e.preventDefault();
-							if (touched) {
-								touched = false;
-								stop();
-							}
-						});
+					if (settings.touchOn === 'none') {
+						$source
+							.on('touchstart.zoom', function (e) {
+								e.preventDefault();
+								if (touched) {
+									touched = false;
+									stop();
+								} else {
+									touched = true;
+									start( e.originalEvent.touches[0] || e.originalEvent.changedTouches[0] );
+								}
+							})
+							.on('touchmove.zoom', function (e) {
+								e.preventDefault();
+								zoom.move( e.originalEvent.touches[0] || e.originalEvent.changedTouches[0] );
+							})
+							.on('touchend.zoom', function (e) {
+								e.preventDefault();
+								if (touched) {
+									touched = false;
+									stop();
+								}
+							});
+					} else if (settings.touchOn === 'click') {
+						$source
+							.on('touchstart.zoom', function (e) {
+								e.preventDefault();
+								if (!imgVisible()) {
+									start( e.originalEvent.touches[0] || e.originalEvent.changedTouches[0] );
+								}
+								touchMoved = false;
+							})
+							.on('touchmove.zoom', function (e) {
+								e.preventDefault();
+								zoom.move( e.originalEvent.touches[0] || e.originalEvent.changedTouches[0] );
+								touchMoved = true;
+							})
+							.on('touchend.zoom', function(e) {
+								e.preventDefault();
+								if (!touchMoved && imgVisible()) {
+									stop();
+								}
+							});
+					}
 				}
 				
 				if ($.isFunction(settings.callback)) {
